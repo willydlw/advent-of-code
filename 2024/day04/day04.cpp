@@ -10,9 +10,8 @@
 #include <fstream>
 #include <iostream>
 #include <vector>
-#include <stack>
 
-const std::string TARGET_WORD{"XMAS"};
+const std::string XMAS{"XMAS"};
 
 
 struct Location{
@@ -50,76 +49,9 @@ void populate_puzzle(std::string fileName, std::vector<std::vector<char>>& puzzl
     }
 }
 
-void add_border_to_puzzle(std::vector<std::vector<char>>& puzzle)
-{
-    int numRows = puzzle.size() + 2;
-    int numCols = puzzle[0].size() + 2;
-    std::vector<std::vector<char>> puzzCopy(numRows, std::vector<char>(numCols, '.'));
-    for(int i = 1; i < numRows-1; i++){
-        for(int j = 1; j < numCols-1; j++){
-            puzzCopy[i][j] = puzzle[i-1][j-1];
-        }
-    }
 
-    puzzle = puzzCopy;
-
-}
-
-
-std::vector<Location> checkNeighbors(const std::vector<std::vector<char>>& puzzle,
-        const Word* searchWord)
-{
-    std::vector<Location> locations;
-    int r = searchWord->currentLocation.row;
-    int c = searchWord->currentLocation.col;
-
-    for(int i = -1; i <= 1; i++){
-        for(int j = -1; j <= 1; j++){
-            if(puzzle[r+i][c+i] == searchWord->nextLetter){
-                locations.push_back((Location){r+i,c+i});
-            }
-        }
-    }
-
-    return locations;
-}
-
-void find_words(std::vector<std::vector<char>>& puzzle, 
-                Word* startWord, std::vector<Word>& wordsFound)
-{
-    std::stack<Word> searchStack;
-    searchStack.push(*startWord);
-
-    while(!searchStack.empty()){
-
-        Word searchWord = searchStack.top();
-        searchStack.pop();
-
-        std::vector<Location> neighbors = checkNeighbors(puzzle, &searchWord);
-
-        for(auto n : neighbors){
-            Word temp = searchWord;
-
-            // add the letter found to the word
-            temp.letters.append(1, temp.nextLetter);
-
-            // add location of letter found
-            temp.gridLocations[temp.numFound] = n;
-
-            temp.currentLocation = n;
-
-            temp.numFound += 1;
-
-            if(temp.numFound < (int)TARGET_WORD.length()){
-                temp.nextLetter = TARGET_WORD[temp.numFound];
-                searchStack.push(temp);
-            }
-            else {
-                // found target word
-                wordsFound.push_back(temp);
-            }
-        }
-    }
+bool inbounds(int r, int c, int numRows, int numCols){
+    return (r >= 0 && r < numRows && c >= 0 && c < numCols);
 }
 
 
@@ -128,31 +60,35 @@ void find_words(std::vector<std::vector<char>>& puzzle,
         all rows have same number of columns
         all letters are upper case
 */
-
-
 int part01(std::vector<std::vector<char>>& puzzle)
 {
     int wordCount = 0;
     int numRows = puzzle.size();
     int numCols = puzzle[0].size();
-    std::vector<Word> words;
+    int numChars = XMAS.length();
 
     for(int r = 0; r < numRows; r++){
         for(int c = 0; c < numCols; c++){
             if(puzzle[r][c] == 'X'){
-                Word word;
-                word.letters = "X";
-                word.currentLocation = (Location){r,c};
-                word.gridLocations[0] = (Location){r,c};
-                word.numFound = 1;
-                word.nextLetter = 'M';
-                
-                std::vector<Word> wordsFound;
-                find_words(puzzle, &word, wordsFound);
-                wordCount += wordsFound.size();
-
-                std::cout << "Words found for X at r: " << r << ", c: "
-                    << c << ", count: " << wordsFound.size() << "\n";
+                // neighbor rows are r-1, r, r+1
+                for(int dr = -1; dr <= 1; dr++){
+                    // neighbor cols are c-1, c, c+1
+                    for(int dc = -1; dc <= 1; dc++){
+                        bool match = true;
+                        for(int i = 0; i < numChars && match; i++){
+                            if(inbounds(r+dr*i, c+dc*i, numRows, numCols)){
+                                if(puzzle[r+dr*i][c+dc*i] != XMAS[i]){
+                                    match = false;
+                                }
+                            }
+                        }
+                        if(match){
+                            std::cout << "found match, r: " << r << ", dr: " << dr 
+                                << ", c: " << c << ", dc: " << dc << "\n";
+                            wordCount++;
+                        }
+                    }
+                }
             }
         }
     }
@@ -185,11 +121,6 @@ int main(int argc, char* argv[])
 
     std::cout << "\nPuzzle Input\n";
     print_puzzle(puzzle);
-
-    std::cout << "\nPuzzle with Border\n";
-    add_border_to_puzzle(puzzle);
-    print_puzzle(puzzle);
-
 
     int xmasCount1 = part01(puzzle);
 
