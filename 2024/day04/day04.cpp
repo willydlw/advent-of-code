@@ -2,9 +2,10 @@
         example.txt 18
         input.txt   2483
 
+    Part 2
+        example.txt 9
+        input.txt   1925
 */
-
-
 
 #include <fstream>
 #include <iostream>
@@ -45,6 +46,17 @@ void populate_puzzle(std::string fileName, std::vector<std::vector<char>>& puzzl
             row.push_back(c);
         }
         puzzle.push_back(row);
+    }
+}
+
+void print_puzzle(std::vector<std::vector<char>>& puzzle)
+{
+    for(auto r : puzzle){
+        for(auto c : r){
+            std::cout << c;
+        }
+
+        std::cout << "\n";
     }
 }
 
@@ -175,16 +187,111 @@ int part01(std::vector<std::vector<char>>& puzzle)
     return wordCount;
 }
 
+/* Find two MAS in shape of x
 
-void print_puzzle(std::vector<std::vector<char>>& puzzle)
+    M       S           r-1,c-1     r-1,c+1
+        A                       r,c
+    M       S           r+1,c-1     r+1,c+1
+
+    S       M           r-1,c-1     r-1,c+1
+        A                       r,c
+    S       M           r+1,c-1     r+1,c+1
+
+    S       S
+        A
+    M       M
+
+    M       M
+        A
+    S       S
+
+
+    Strategy: Find letter 'A' and check neighbors
+
+*/
+int part02(std::vector<std::vector<char>>& puzzle)
 {
-    for(auto r : puzzle){
-        for(auto c : r){
-            std::cout << c;
-        }
+    int count = 0;
 
-        std::cout << "\n";
+    size_t numRows = puzzle.size();
+    size_t numCols = puzzle[0].size();
+
+    /* searching for the letter 'A'
+        If 'A' is found in row 0, the last row,
+        col 0, or the last column, the pattern
+        does not exist. Thus, no need to search
+        those rows and columns for an 'A'
+    */
+    for(size_t r = 1; r < numRows-1; r++){
+        for(size_t c = 1; c < numCols-1; c++){
+            if(puzzle[r][c] == 'A')
+            {            
+                size_t rminus = r-1;
+                size_t rplus = r+1;
+                size_t cminus  = c-1;
+                size_t cplus = c+1;
+                if( inbounds(rminus, cminus, numRows, numCols) && 
+                    inbounds(rminus,cplus, numRows, numCols) && 
+                    inbounds(rplus, cminus, numRows, numCols) && 
+                    inbounds(rplus, cplus, numRows, numCols))
+                {
+                    if(puzzle[rminus][cminus] == puzzle[rplus][cminus] && 
+                        puzzle[rminus][cplus] == puzzle[rplus][cplus])
+                    {
+                        /* c-1 column characters are same 
+                        c+1 column characters are same
+
+                            M       S           r-1,c-1     r-1,c+1
+                                A                       r,c
+                            M       S           r+1,c-1     r+1,c+1
+
+                        */
+                        if(puzzle[rminus][cminus] == 'M' && puzzle[rminus][cplus] == 'S')
+                        {
+                            count++;
+                        }
+
+                        /*
+                            S       M           r-1,c-1     r-1,c+1
+                                A                       r,c
+                            S       M           r+1,c-1     r+1,c+1
+                        */
+                        else if(puzzle[rminus][cminus] == 'S' && puzzle[rminus][cplus] == 'M')
+                        {
+                            count++;
+                        }
+                    }
+                    else if(puzzle[rminus][cminus] == puzzle[rminus][cplus] &&
+                            puzzle[rplus][cminus] == puzzle[rplus][cplus])
+                    {
+                        /*  row-1 characters are same
+                            row+1 chaaracter are same
+
+                            S       S       r-1,c-1     r-1,c+1
+                                A                   r,c
+                            M       M       r+1,c-1     r+1,c+1
+
+                            M       M       r-1,c-1     r-1,c+1
+                                A                   r,c
+                            S       S       r+1,c-1     r+1,c+1
+                        */
+
+                        if(puzzle[rminus][cminus] == 'S' && puzzle[rplus][cminus] == 'M'){
+                                count++;
+                        }
+                        else if(puzzle[rminus][cminus] == 'M' && puzzle[rplus][cminus] == 'S'){
+                                count++;
+                        }
+
+                    } 
+                }
+            }
+        }
     }
+
+    //print_puzzle(debugPuzzle);  // visual debug confirmation of init state
+
+    return count;
 }
 
 int main(int argc, char* argv[])
@@ -202,8 +309,10 @@ int main(int argc, char* argv[])
     //print_puzzle(puzzle);
 
     int xmasCount1 = part01(puzzle);
+    int xmasCount2 = part02(puzzle);
 
     std::cout << "part 1: " << xmasCount1 << "\n";
+    std::cout << "part 2: " << xmasCount2 << "\n";
 
     return 0;
 }
