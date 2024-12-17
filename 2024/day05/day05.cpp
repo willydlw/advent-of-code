@@ -79,41 +79,50 @@ void populate_page_rules(std::string fileName, std::unordered_multimap<int,int>&
 int part01(const std::unordered_multimap<int,int>& rules, const std::vector<std::vector<int>>& order)
 {
     int middleTotal = 0;
+    int rightOrderCount = 0;
 
     for(auto pageNumbers : order){
-        int inOrderCount = 0;
+        size_t inOrderCount = 0;
         size_t numUpdates = pageNumbers.size();
-        for(size_t i = 0; i < numUpdates; i++){
+        bool inOrder = true;
+        for(size_t i = 0; i < numUpdates && inOrder; i++){
+            
+            // can this page, pageNumbers[i] come before the others listed after it?
             for(size_t j = i+1; j < numUpdates; j++){
-                // can this page come before the others listed after it?
+                
                 std::cout << "can page number " << pageNumbers[i] << " come before page number "
                     << pageNumbers[j] << "?\n";
                 
-                bool inOrder = false;
-                for(auto itr = rules.begin(); itr != rules.end() && !inOrder; itr++ ){
+                bool foundRule = false;
+                for(auto itr = rules.begin(); itr != rules.end() && !foundRule; itr++ ){
                     if(itr->first == pageNumbers[i]){
                         std::cout << "found key: " << pageNumbers[i] << ", value is " << itr->second << "\n";
                         if(itr->second == pageNumbers[j]){
-                            std::cout << "order is correct\n";
-                            inOrder = true;
-                            inOrderCount++;
+                            std::cout << "foundRule, correct order\n";
+                            foundRule = true;
                         }
                     }
                 }
-
-                std::cout << "inOrderCount: " << inOrderCount
-                    << ", pageNumbers.size() " << pageNumbers.size() 
-                    << ", i: " << i << "\n";
-                if(inOrderCount == (pageNumbers.size() - i))
-                {
-                    std::cout << "find the middle value\n";
+                if(!foundRule){
+                    std::cout << "page " << pageNumbers[i] << " is out of order\n";
+                    inOrder = false;
                 }
-
-                inOrderCount = 0;
             }
+            if(inOrder){
+                inOrderCount++;
+            }
+        }
+
+        std::cout << "inOrderCount: " << inOrderCount
+                    << ", numUpdates " << numUpdates 
+                    << "\n";
+        if(inOrderCount == numUpdates){
+            rightOrderCount++;
+            std::cout << "find the middle value\n";
         }
     }
 
+    std::cout << "rightOrderCount: " << rightOrderCount << "\n";
     return middleTotal;
 }
 
