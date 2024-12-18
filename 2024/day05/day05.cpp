@@ -8,6 +8,14 @@
 
 #include <cstdlib>
 
+/*  Part 1
+        exampleRules.txt, exampleOrder.txt      143
+        pageOrder.txt, pageRules.txt            5964
+
+    Part 2
+
+*/
+
 void print_page_order(const std::vector<std::vector<int>>& order)
 {
     for(auto row : order){
@@ -81,30 +89,32 @@ int part01(const std::unordered_multimap<int,int>& rules, const std::vector<std:
     int middleTotal = 0;
     int rightOrderCount = 0;
 
+    int rowCount = 0;
+
     for(auto pageNumbers : order){
         size_t inOrderCount = 0;
         size_t numUpdates = pageNumbers.size();
         bool inOrder = true;
         for(size_t i = 0; i < numUpdates && inOrder; i++){
-            
             // can this page, pageNumbers[i] come before the others listed after it?
-            for(size_t j = i+1; j < numUpdates; j++){
+            for(size_t j = i+1; j < numUpdates && inOrder; j++){
                 
-                std::cout << "can page number " << pageNumbers[i] << " come before page number "
+                /*std::cout << "can page number " << pageNumbers[i] << " come before page number "
                     << pageNumbers[j] << "?\n";
+                */
                 
                 bool foundRule = false;
                 for(auto itr = rules.begin(); itr != rules.end() && !foundRule; itr++ ){
                     if(itr->first == pageNumbers[i]){
-                        std::cout << "found key: " << pageNumbers[i] << ", value is " << itr->second << "\n";
+                        //std::cout << "found key: " << pageNumbers[i] << ", value is " << itr->second << "\n";
                         if(itr->second == pageNumbers[j]){
-                            std::cout << "foundRule, correct order\n";
+                            //std::cout << "foundRule, correct order\n";
                             foundRule = true;
                         }
                     }
                 }
                 if(!foundRule){
-                    std::cout << "page " << pageNumbers[i] << " is out of order\n";
+                    std::cout << "row number: "<< rowCount << ", page " << pageNumbers[i] << " is out of order\n";
                     inOrder = false;
                 }
             }
@@ -113,13 +123,13 @@ int part01(const std::unordered_multimap<int,int>& rules, const std::vector<std:
             }
         }
 
-        std::cout << "inOrderCount: " << inOrderCount
-                    << ", numUpdates " << numUpdates 
-                    << "\n";
         if(inOrderCount == numUpdates){
             rightOrderCount++;
-            std::cout << "find the middle value\n";
+            int middlePageIndex = numUpdates / 2;
+                middleTotal += pageNumbers[middlePageIndex];
         }
+
+        rowCount++;
     }
 
     std::cout << "rightOrderCount: " << rightOrderCount << "\n";
@@ -149,8 +159,10 @@ int main(int argc, char* argv[])
     populate_page_order(orderFile, pageOrder);
     //print_page_order(pageOrder);
 
-    int rightOrderCount;
-    rightOrderCount = part01(pageRules, pageOrder);
+    int middleTotal;
+    middleTotal = part01(pageRules, pageOrder);
+
+    std::cout << "part 1 middle total: " << middleTotal << "\n";
 
     return 0;
 }
