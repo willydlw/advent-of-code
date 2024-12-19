@@ -13,6 +13,8 @@
         pageOrder.txt, pageRules.txt            5964
 
     Part 2
+        exampleRules.txt, exampleOrder.txt      123
+        pageOrder.txt, pageRules.txt            ???
 
 */
 
@@ -83,58 +85,139 @@ void populate_page_rules(std::string fileName, std::unordered_multimap<int,int>&
     inFile.close();
 }
 
-
-int part01(const std::unordered_multimap<int,int>& rules, const std::vector<std::vector<int>>& order)
+int part01(const std::unordered_multimap<int,int>& pageRules, const std::vector<std::vector<int>>& pageOrder,
+                 std::vector<std::vector<int>>& inCorrectOrder)
 {
     int middleTotal = 0;
-    int rightOrderCount = 0;
+    int rightOrderCount = 0;                // used only for debugging
 
-    int rowCount = 0;
+    size_t numRows = pageOrder.size();
 
-    for(auto pageNumbers : order){
-        size_t inOrderCount = 0;
-        size_t numUpdates = pageNumbers.size();
+    for(size_t r = 0; r < numRows; r++){
+        
+        // count number of pages in order in this row
+        size_t inOrderCount = 0; 
+
+        // number of updates in this row                  
+        size_t numUpdates = pageOrder[r].size();
+
+        // inOrder will be true if all pages in this row are ordered
+        // such that they comply with page rules
         bool inOrder = true;
+
+        // iterate through all page number updates in this row
+        // comparing them to all page numbers listed after them
+        // to verify order is correct
         for(size_t i = 0; i < numUpdates && inOrder; i++){
-            // can this page, pageNumbers[i] come before the others listed after it?
-            for(size_t j = i+1; j < numUpdates && inOrder; j++){
-                
-                /*std::cout << "can page number " << pageNumbers[i] << " come before page number "
-                    << pageNumbers[j] << "?\n";
-                */
-                
+            for(size_t j = i+1; j < numUpdates && inOrder; j++){   
+
+                // search the page rules until a rule is found to check the order     
                 bool foundRule = false;
-                for(auto itr = rules.begin(); itr != rules.end() && !foundRule; itr++ ){
-                    if(itr->first == pageNumbers[i]){
-                        //std::cout << "found key: " << pageNumbers[i] << ", value is " << itr->second << "\n";
-                        if(itr->second == pageNumbers[j]){
-                            //std::cout << "foundRule, correct order\n";
+                for(auto itr = pageRules.begin(); itr != pageRules.end() && !foundRule; itr++ ){
+                    if(itr->first == pageOrder[r][i] && itr->second == pageOrder[r][j]){
                             foundRule = true;
-                        }
                     }
                 }
+
                 if(!foundRule){
-                    std::cout << "row number: "<< rowCount << ", page " << pageNumbers[i] << " is out of order\n";
+                    std::cerr << "Order Error, row number: "<< r 
+                        << "  no rule for this order: " 
+                        << pageOrder[r][i] << "|" << pageOrder[r][j] << "\n";
                     inOrder = false;
                 }
             }
+
             if(inOrder){
                 inOrderCount++;
+            }
+            else{
+                inCorrectOrder.push_back(pageOrder[r]);
             }
         }
 
         if(inOrderCount == numUpdates){
             rightOrderCount++;
             int middlePageIndex = numUpdates / 2;
-                middleTotal += pageNumbers[middlePageIndex];
+            middleTotal += pageOrder[r][middlePageIndex];
         }
-
-        rowCount++;
     }
 
     std::cout << "rightOrderCount: " << rightOrderCount << "\n";
     return middleTotal;
 }
+
+
+int part02(const std::unordered_multimap<int,int>& pageRules, std::vector<std::vector<int>>& pageOrder)
+{
+    int middleTotal = 0;
+    int rightOrderCount = 0;                // used only for debugging
+
+    size_t numRows = pageOrder.size();
+
+    for(size_t r = 0; r < numRows; r++){
+        
+        // count number of pages in order in this row
+        size_t inOrderCount = 0; 
+
+        // number of updates in this row                  
+        size_t numUpdates = pageOrder[r].size();
+
+        // inOrder will be true if all pages in this row are ordered
+        // such that they comply with page rules
+        bool inOrder = true;
+
+        // iterate through all page number updates in this row
+        // comparing them to all page numbers listed after them
+        // to verify order is correct
+        size_t i = 0;
+        size_t j;
+        while(i < numUpdates){
+            j = i + 1;
+
+            while(j < numUpdates && inOrder){
+
+                // search the page rules until a rule is found to check the order     
+                bool foundRule = false;
+                for(auto itr = pageRules.begin(); itr != pageRules.end() && !foundRule; itr++ ){
+                    if(itr->first == pageOrder[r][i] && itr->second == pageOrder[r][j]){
+                            foundRule = true;
+                    }
+                }
+
+                if(!foundRule){
+                    std::cerr << "Order Error, row number: "<< r 
+                        << "  no rule for this order: " 
+                        << pageOrder[r][i] << "|" << pageOrder[r][j] << "\n";
+                    inOrder = false;
+                }
+
+                j++;
+            }
+
+            if(inOrder){
+                inOrderCount++;
+                i++;
+            }
+            else{
+                // switch places and then retest order
+                int temp = pageOrder[r][j];
+                pageOrder[r][j] = pageOrder[r][i];
+                pageOrder[r][i] = temp;
+            }
+        }
+
+        if(inOrderCount == numUpdates){
+            rightOrderCount++;
+            int middlePageIndex = numUpdates / 2;
+            middleTotal += pageOrder[r][middlePageIndex];
+        }
+    }
+
+    std::cout << "rightOrderCount: " << rightOrderCount << "\n";
+    return middleTotal;
+}
+
+
 
 int main(int argc, char* argv[])
 {
@@ -144,6 +227,7 @@ int main(int argc, char* argv[])
     std::unordered_multimap<int,int> pageRules;
 
     std::vector<std::vector<int>> pageOrder;
+    std::vector<std::vector<int>> inCorrectOrder;
 
     if(argc < 3){
         std::cerr << "Usage: a.out rulesFile orderFile\n";
@@ -159,10 +243,17 @@ int main(int argc, char* argv[])
     populate_page_order(orderFile, pageOrder);
     //print_page_order(pageOrder);
 
-    int middleTotal;
-    middleTotal = part01(pageRules, pageOrder);
+    int middleTotal1;
+    middleTotal1 = part01(pageRules, pageOrder, inCorrectOrder);
 
-    std::cout << "part 1 middle total: " << middleTotal << "\n";
+    std::cout << "part 1 middle total: " << middleTotal1 << "\n";
+
+    std::cout << "part 1 returned the following incorrect order updates\n";
+    print_page_order(inCorrectOrder);
+
+    int middleTotal2;
+    middleTotal2 = part02(pageRules, inCorrectOrder);
+    std::cout << "part 2 middle total: " << middleTotal2 << "\n";
 
     return 0;
 }
