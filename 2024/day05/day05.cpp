@@ -185,13 +185,15 @@ int part02(const std::unordered_multimap<int,int>& pageRules, std::vector<std::v
                 }
 
                 if(!foundRule){
-                    std::cerr << "Order Error, row number: "<< r 
+                    /*std::cerr << "Order Error, row number: "<< r 
                         << "  no rule for this order: " 
                         << pageOrder[r][i] << "|" << pageOrder[r][j] << "\n";
+                    */
                     inOrder = false;
                 }
-
-                j++;
+                else{
+                    j++;
+                }
             }
 
             if(inOrder){
@@ -203,6 +205,7 @@ int part02(const std::unordered_multimap<int,int>& pageRules, std::vector<std::v
                 int temp = pageOrder[r][j];
                 pageOrder[r][j] = pageOrder[r][i];
                 pageOrder[r][i] = temp;
+                inOrder = true;
             }
         }
 
