@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <cstdlib>
+#include <unordered_map>
 
 /*  Part 1
         example.txt     41
@@ -9,12 +10,13 @@
 
     Part 2
         example.txt     6
-        input.txt       ???
+        input.txt       1434
 */
 
 static const char GUARD_SYMBOL = '^';
 static const char VISITED = 'X';
 static const char OBSTACLE = '#';
+static const char OBSTACLE2 = 'O';
 
 enum DIRECTION {LEFT, RIGHT, UP, DOWN};
 
@@ -195,12 +197,41 @@ bool simulate_guard_movement(std::vector<std::vector<char>>& map, Location guard
     bool guardInMappedArea = true;
 
     int numRows = static_cast<int>(map.size());
+    int numCols = static_cast<int>(map[0].size());
 
-    map[guardLocation.row][guardLocation.col] = VISITED;
+    // hash set key: grid location row * numcols + col
+    //          value: direction
+    // using multimap because there may be duplicate keys
+    // ex: grid location 0 may be visited with four different directions
+    //      0   UP
+    //      0   DOWN
+    //      0   LEFT
+    //      0   RIGHT
+    std::unordered_multimap<int, DIRECTION> visitedMap;
 
+  
     while(guardInMappedArea && !loopDetected){
         int r = guardLocation.row;
         int c = guardLocation.col;
+
+        // iterate over the range of elements with the given key
+        bool duplicateVisit = false;
+        for(auto [itr, rangeEnd] =  visitedMap.equal_range(r*numCols+c); itr != rangeEnd; ++itr){
+            if(itr->second == guardLocation.direction){
+                duplicateVisit = true;
+                break;
+            }
+        }
+
+        if(duplicateVisit){
+            // loop detected because guard has already visited this location traveling in same
+            // direction
+            return true;;
+        }
+        else{
+            visitedMap.insert({r*numCols+c, guardLocation.direction});
+        }
+
         switch(guardLocation.direction){
             case LEFT:
                 if(c-1 >= 0){
@@ -208,11 +239,7 @@ bool simulate_guard_movement(std::vector<std::vector<char>>& map, Location guard
                         // turn right 90 degrees
                         guardLocation.direction = UP;
                     }
-                    else if(map[r][c-1] == VISITED){
-                        loopDetected = true;
-                    }
                     else{
-                        map[r][c-1] = VISITED;
                         guardLocation.col = c-1;
                     }
                 }
@@ -227,11 +254,7 @@ bool simulate_guard_movement(std::vector<std::vector<char>>& map, Location guard
                         // turn right 90 degrees
                         guardLocation.direction = DOWN;
                     }
-                    else if(map[r][c+1] == VISITED){
-                        loopDetected = true;
-                    }
                     else{
-                        map[r][c+1] = VISITED;
                         guardLocation.col = c+1;
                     }
                 }
@@ -246,11 +269,7 @@ bool simulate_guard_movement(std::vector<std::vector<char>>& map, Location guard
                         // turn right 90 degrees
                         guardLocation.direction = RIGHT;
                     }
-                    else if(map[r-1][c] == VISITED){
-                        loopDetected = true;
-                    }
                     else{
-                        map[r-1][c] = VISITED;
                         guardLocation.row = r-1;
                     }
                 }
@@ -264,11 +283,7 @@ bool simulate_guard_movement(std::vector<std::vector<char>>& map, Location guard
                         // turn right 90 degrees
                         guardLocation.direction = LEFT;
                     }
-                    else if(map[r+1][c] == VISITED){
-                        loopDetected = true;
-                    }
                     else{
-                        map[r+1][c] = VISITED;
                         guardLocation.row = r+1;
                     }
                 }
