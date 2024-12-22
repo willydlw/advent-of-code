@@ -8,7 +8,7 @@
         input.txt       4939
 
     Part 2
-        example.txt     
+        example.txt     6
         input.txt       ???
 */
 
@@ -189,6 +189,131 @@ int part01(std::vector<std::vector<char>>& map)
     return uniquePositionsVisited;
 }
 
+bool simulate_guard_movement(std::vector<std::vector<char>>& map, Location guardLocation)
+{
+    bool loopDetected = false;
+    bool guardInMappedArea = true;
+
+    int numRows = static_cast<int>(map.size());
+
+    map[guardLocation.row][guardLocation.col] = VISITED;
+
+    while(guardInMappedArea && !loopDetected){
+        int r = guardLocation.row;
+        int c = guardLocation.col;
+        switch(guardLocation.direction){
+            case LEFT:
+                if(c-1 >= 0){
+                    if(map[r][c-1] == OBSTACLE){
+                        // turn right 90 degrees
+                        guardLocation.direction = UP;
+                    }
+                    else if(map[r][c-1] == VISITED){
+                        loopDetected = true;
+                    }
+                    else{
+                        map[r][c-1] = VISITED;
+                        guardLocation.col = c-1;
+                    }
+                }
+                else {
+                    guardInMappedArea = false;
+                }
+            break;
+
+            case RIGHT:
+                if(c+1 < (int)map[r].size()){
+                    if(map[r][c+1] == OBSTACLE){
+                        // turn right 90 degrees
+                        guardLocation.direction = DOWN;
+                    }
+                    else if(map[r][c+1] == VISITED){
+                        loopDetected = true;
+                    }
+                    else{
+                        map[r][c+1] = VISITED;
+                        guardLocation.col = c+1;
+                    }
+                }
+                else {
+                    guardInMappedArea = false;
+                }
+            break;
+
+            case UP:
+                if(r-1 >= 0){
+                    if(map[r-1][c] == OBSTACLE){
+                        // turn right 90 degrees
+                        guardLocation.direction = RIGHT;
+                    }
+                    else if(map[r-1][c] == VISITED){
+                        loopDetected = true;
+                    }
+                    else{
+                        map[r-1][c] = VISITED;
+                        guardLocation.row = r-1;
+                    }
+                }
+                else {
+                    guardInMappedArea = false;
+                }
+            break;
+            case DOWN:
+                if(r+1 < numRows){
+                    if(map[r+1][c] == OBSTACLE){
+                        // turn right 90 degrees
+                        guardLocation.direction = LEFT;
+                    }
+                    else if(map[r+1][c] == VISITED){
+                        loopDetected = true;
+                    }
+                    else{
+                        map[r+1][c] = VISITED;
+                        guardLocation.row = r+1;
+                    }
+                }
+                else {
+                    guardInMappedArea = false;
+                }
+            break;
+            default:
+                std::cerr << "Error, function: " << __func__ << ", unknown direction: " 
+                    << guardLocation.direction << "\n";
+                exit(EXIT_FAILURE);
+        }
+    }
+
+    return loopDetected;
+}
+
+
+int part02(const std::vector<std::vector<char>>& map)
+{
+    int numObstaclePositions = 0;
+    Location guardStartLocation;
+    if(!find_guard(map, &guardStartLocation)){
+        std::cerr << "Error, cannot find Guard location\n";
+        return numObstaclePositions;
+    }
+    
+    int numRows = static_cast<int> (map.size());
+    int numCols = static_cast<int> (map[0].size());
+    for(int r = 0; r < numRows; r++){
+        for(int c = 0; c < numCols; c++){
+            if(map[r][c] != OBSTACLE && map[r][c] != GUARD_SYMBOL){
+                std::vector<std::vector<char>> mapCopy = map;
+                mapCopy[r][c] = OBSTACLE;
+                bool loopDetected = simulate_guard_movement(mapCopy, guardStartLocation);
+                if(loopDetected){
+                    numObstaclePositions++;
+                }
+            }
+        }
+    }
+
+    return numObstaclePositions;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -202,10 +327,14 @@ int main(int argc, char* argv[])
 
     populate_map(fileName, map);
     //print_map(map);
+
+    std::vector<std::vector<char>> map2 = map;
     
     int count1 = part01(map);
+    int count2 = part02(map2);
 
     std::cout << "part 1: " << count1 << "\n";
+    std::cout << "part 2: " << count2 << "\n";
 
     return 0;
 }
