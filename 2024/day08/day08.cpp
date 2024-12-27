@@ -7,15 +7,12 @@
 #include <map>
 
 /*  Part 1
-        test1.txt       2
-        test2.txt       4
-        test3.txt       4  (there is an antinode of a at location A)
         example.txt     14
         input.txt       247
 
     Part 2
-        example.txt
-        input.txt
+        example.txt     34
+        input.txt       861
 */
 
 struct Location{
@@ -84,8 +81,11 @@ bool inbounds(int x, int min, int max)
 /*  Assumptions:
         grid contains at least one row
         all columns in grid are same width
+
+    Parameters are passed by value because this function will change the
+    contents and do not want to affect original content.
 */
-int part01(const std::vector<std::vector<char>>& grid, const std::multimap<char,Location>& antennaMap)
+int part01(std::vector<std::vector<char>> grid, std::multimap<char,Location> antennaMap)
 {
     char key;
     int r, c;
@@ -94,30 +94,24 @@ int part01(const std::vector<std::vector<char>>& grid, const std::multimap<char,
     int numRows = grid.size();
     int numCols = grid[0].size();
 
-    // create copy of grid for debugging and to mark antinodes with '#'
-    std::vector<std::vector<char>> gcopy;
-    gcopy.assign(grid.begin(), grid.end());
-
-    // create copy of antenna map
-    std::multimap<char, Location> antMapCopy(antennaMap);
 
     // get first antenna location in map
-    auto itr = antMapCopy.begin();
-    if(itr != antMapCopy.end()){
+    auto itr = antennaMap.begin();
+    if(itr != antennaMap.end()){
         key = itr->first;
         r = itr->second.row;
         c = itr->second.col;
-        antMapCopy.erase(itr);
+        antennaMap.erase(itr);
     }
 
-    while(!antMapCopy.empty())
+    while(!antennaMap.empty())
     {
         // find the range of elements with the same key
         // equal_range returns a pair of iterators, where the first 
         // iterator points to the first element with this key 
         // and the second iterator points to the element immediately after 
         // the last element with this key
-        auto range = antMapCopy.equal_range(key);
+        auto range = antennaMap.equal_range(key);
 
         // in a multimap, elements are sorted by keys, so all elements
         // with same key are adjacent to each other
@@ -136,27 +130,113 @@ int part01(const std::vector<std::vector<char>>& grid, const std::multimap<char,
             
             // are antinodes locations within grid area
             if( inbounds(r1, 0, numRows) && inbounds(c1, 0, numCols)){
-                gcopy[r1][c1] = '#';
+                grid[r1][c1] = '#';
             }
 
             if( inbounds(r2, 0, numRows) && inbounds(c2, 0, numCols)){
-                gcopy[r2][c2] = '#';
+                grid[r2][c2] = '#';
             }
         }
 
-        itr = antMapCopy.begin();
+        itr = antennaMap.begin();
         key = itr->first;
         r = itr->second.row;
         c = itr->second.col;
-        antMapCopy.erase(itr);
+        antennaMap.erase(itr);
+    }
+
+    // count unique anti nodes
+    for(size_t i = 0; i < grid.size(); i++){
+        for(size_t j = 0; j < grid[i].size(); j++){
+            if(grid[i][j] == '#'){
+                antiNodeCount++;
+            }
+        }
+    }
+    return antiNodeCount;
+}
+
+
+/*  antinode occurs at any grid position exactly in line with at least two antennas of 
+    the same frequency, regardless of distance. This means that some of the new 
+    antinodes will occur at the position of each antenna (unless that antenna is the 
+    only one of its frequency)
+
+Assumptions:
+        grid contains at least one row
+        all columns in grid are same width
+*/
+int part02(std::vector<std::vector<char>> grid, std::multimap<char,Location> antennaMap)
+{
+    char key;
+    int r, c;
+
+    int antiNodeCount = 0;
+    int numRows = grid.size();
+    int numCols = grid[0].size();
+
+    // get first antenna location in map
+    auto itr = antennaMap.begin();
+    if(itr != antennaMap.end()){
+        key = itr->first;
+        r = itr->second.row;
+        c = itr->second.col;
+        antennaMap.erase(itr);
+    }
+
+    while(!antennaMap.empty())
+    {
+        // find the range of elements with the same key
+        // equal_range returns a pair of iterators, where the first 
+        // iterator points to the first element with this key 
+        // and the second iterator points to the element immediately after 
+        // the last element with this key
+        auto range = antennaMap.equal_range(key);
+
+        // in a multimap, elements are sorted by keys, so all elements
+        // with same key are adjacent to each other
+        for(auto keyit = range.first; keyit != range.second; ++keyit){
+            
+            Location ant1(r,c);
+            Location ant2(keyit->second.row, keyit->second.col);
+            int dx = ant1.col - ant2.col;
+            int dy = ant1.row - ant2.row;
+
+
+            // place antinodes
+            int aRow = ant1.row += dy;
+            int aCol = ant1.col += dx;
+
+            while(inbounds(aRow, 0, numRows) && inbounds(aCol, 0, numCols)){
+                grid[aRow][aCol] = '#';
+                aRow += dy;
+                aCol += dx;
+            }
+
+            aRow = ant1.row - dy;
+            aCol = ant1.col - dx;
+
+            while(inbounds(aRow, 0, numRows) && inbounds(aCol, 0, numCols)){
+                grid[aRow][aCol] = '#';
+                aRow -= dy;
+                aCol -= dx;
+            }
+        
+        }
+
+        itr = antennaMap.begin();
+        key = itr->first;
+        r = itr->second.row;
+        c = itr->second.col;
+        antennaMap.erase(itr);
     }
 
     //std::cout << "\nGrid Copy with antinodes\n";
-    //print_grid(gcopy);
+    //print_grid(grid);
 
-    for(size_t i = 0; i < gcopy.size(); i++){
-        for(size_t j = 0; j < gcopy[i].size(); j++){
-            if(gcopy[i][j] == '#'){
+    for(int i = 0; i < numRows; i++){
+        for(int j = 0; j < numCols; j++){
+            if(grid[i][j] == '#'){
                 antiNodeCount++;
             }
         }
@@ -186,6 +266,9 @@ int main(int argc, char* argv[])
     int count1;
     count1 = part01(grid, antennaMap);
     std::cout << "part 1: " << count1 << "\n";
+
+    int count2 = part02(grid, antennaMap);
+    std::cout << "part 2: " << count2 << "\n";
 
     return 0;
 }
