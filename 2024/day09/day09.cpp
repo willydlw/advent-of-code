@@ -14,6 +14,8 @@
 
 #include <vector>
 
+#include <cstdlib>          // exit
+
 void read_diskmap(const std::string& filename, std::string& diskmap)
 {
     std::ifstream infile(filename);
@@ -32,7 +34,7 @@ void read_diskmap(const std::string& filename, std::string& diskmap)
 
 }
 
-void part01(const std::string& diskmap)
+long long part01(const std::string& diskmap)
 {
     /*  Disk Map Format - File Layout and Free Space
         ---------------------------------------------
@@ -67,12 +69,76 @@ void part01(const std::string& diskmap)
         0..111....22222 
     */
 
-    std::string fileBlocks;
-    int fileID = 0;
+    
+    /* defrag vector
+            File block values are stored in even number indices
+                The standard pair first number is the file id. Note this is
+                redundant as file id can be determined as index/2.
 
-    for(int i = 0; diskmap.length(); i++){
-        
+                The standard pair second int is the file block size
+
+       Free space is stored in odd number indices
+                The standard pair first number is amount of free space
+                The standard pair second value is the file block size stored there
+    */
+    std::vector<int> defrag;
+
+    std::vector<int> fileblocks;    // index is file id
+    std::vector<int> freespace;
+
+    // store file id and file block size in even numbered indices
+    for(size_t i = 0; i < diskmap.length(); i++){
+        if(i & 1){
+            // freespace at odd number indices in string
+            freespace.push_back(diskmap[i] - '0');
+        }
+        else{
+            fileblocks.push_back(diskmap[i] - '0');
+        }
     }
+
+    // create a vector to store defragmented result
+    // store the leftmost file block as the first entry in defrag
+    defrag.push_back(fileblocks[0]);
+
+    // Move file blocks one at a time from the end of the disk map to 
+    // the leftmost free space block until there are no gaps remaining 
+    // between the file blocks.
+    size_t right = fileblocks.size()-1;
+    size_t left = 0;        // freespace index
+    
+    while(left < freespace.size() && right > 0){ 
+        if(fileblocks[right] <= freespace[left]){
+            // amount of rightmost fileblocks is <= available free space
+            defrag.push_back(fileblocks[right]);
+            freespace[left] = freespace[left] - fileblocks[right]; // reduce free space
+            right--;
+        }
+        else{ 
+            // number of fileblocks is greater than the available free space
+            // move some of the file blocks 
+            defrag.push_back(fileblocks[right]);
+            fileblocks[right] -= freespace[left];
+            left++;
+        }
+    }
+
+    std::cout << "Defrag pattern\n";
+    for(size_t i = 0; i < defrag.size(); i++)
+    {
+        std::cout << defrag[i] << " ";
+    }
+
+    std::cout << "\n";
+    
+    // calculate checksum
+    long long checksum = 0;
+    for(size_t i = 0; i < defrag.size(); i++){
+        checksum = checksum + i * defrag[i];
+    }
+    
+    return checksum;
+    
 }
 
 
@@ -87,6 +153,10 @@ int main(int argc, char* argv[])
     read_diskmap(filename, diskmap);
 
     std::cout << "diskmap.length() is " << diskmap.length() << "\n";
+
+    long long sum1 = part01(diskmap);
+
+    std::cout << "part 1: " << sum1 << "\n";
 
     return 0;
 }
