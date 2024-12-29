@@ -69,45 +69,69 @@ long long part01(const std::string& diskmap)
         0..111....22222 
     */
 
-    
-    /* defrag vector
-            File block values are stored in even number indices
-                The standard pair first number is the file id. Note this is
-                redundant as file id can be determined as index/2.
 
-                The standard pair second int is the file block size
+    // number of fileblocks for each file id
+    // The file id is the corresponding vector index
+    // Examples: 
+    //      File ID 0 has two file blocks,  fileblocks[0] = 2;
+    //      File ID 1 has three file block, fileblocks[1] = 3;
+    std::vector<int> fileblocks;    // represents number of fileblocks
 
-       Free space is stored in odd number indices
-                The standard pair first number is amount of free space
-                The standard pair second value is the file block size stored there
-    */
-    std::vector<int> defrag;
-
-    std::vector<int> fileblocks;    // index is file id
+    // list of freespace
+    // Input diskmap has pattern of file block, free space, file block, free space.
+    // freespace[i] is the amount of free space available immediately after
+    // fileblocks[i].
     std::vector<int> freespace;
 
-    // store file id and file block size in even numbered indices
+    // separate disk map information into fileblocks and free space
+    // fileblocks vector
     for(size_t i = 0; i < diskmap.length(); i++){
         if(i & 1){
-            // freespace at odd number indices in string
+            // freespace located at odd number indices in diskmap string
             freespace.push_back(diskmap[i] - '0');
         }
-        else{
+        else{ // file blocks located at even number indices in diskmap string
             fileblocks.push_back(diskmap[i] - '0');
         }
     }
 
-    // create a vector to store defragmented result
+
+    /*  defrag vector
+
+        Each index location represents space for one file block and will contain
+        the file id. 
+    */
+    std::vector<int> defrag;
+
     // store the leftmost file block as the first entry in defrag
     defrag.push_back(fileblocks[0]);
 
     // Move file blocks one at a time from the end of the disk map to 
     // the leftmost free space block until there are no gaps remaining 
     // between the file blocks.
-    size_t right = fileblocks.size()-1;
-    size_t left = 0;        // freespace index
+    size_t numBlocks = fileblocks[0];
+    size_t spaceIndex = 0;        // freespace index
+    size_t defragIndex = 0;
+    size_t fileID = 0;
+
+    // Initialize defrag with the file ID 0 file blocks
+    // Example: File ID 0 has 2 file blocks. Therefore, 
+    // defrag[0] = 0, defrag[1] = 0
+    for(size_t i = 0; i < numBlocks; i++)
+    {
+        defrag.push_back(fileID);
+    }
+
+
+    // now fill available free space with right most file block
+
+
     
     while(left < freespace.size() && right > 0){ 
+        int spaceAvailable = freespace[left];
+        while(spaceAvailable){
+
+        }
         if(fileblocks[right] <= freespace[left]){
             // amount of rightmost fileblocks is <= available free space
             defrag.push_back(fileblocks[right]);
