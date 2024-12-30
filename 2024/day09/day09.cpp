@@ -1,11 +1,11 @@
 /*  Day 9 - Disk Fragmenter
 
     Part 1 solution
-        example.txt     
-        input.txt       
+        example.txt     1928
+        input.txt       6331212425418
     
     Part 2 solution
-        example.txt     
+        example.txt     2858
         input.txt       
 */
 #include <fstream>
@@ -103,61 +103,67 @@ long long part01(const std::string& diskmap)
     */
     std::vector<int> defrag;
 
-    // store the leftmost file block as the first entry in defrag
-    defrag.push_back(fileblocks[0]);
+    // leftmost and rightmost fileblocks indices
+    int leftID = 0;
+    int rightID = static_cast<int>(fileblocks.size()-1);
 
     // Move file blocks one at a time from the end of the disk map to 
     // the leftmost free space block until there are no gaps remaining 
     // between the file blocks.
-    size_t numBlocks = fileblocks[0];
-    size_t spaceIndex = 0;        // freespace index
-    size_t defragIndex = 0;
-    size_t fileID = 0;
-
-    // Initialize defrag with the file ID 0 file blocks
-    // Example: File ID 0 has 2 file blocks. Therefore, 
-    // defrag[0] = 0, defrag[1] = 0
-    for(size_t i = 0; i < numBlocks; i++)
-    {
-        defrag.push_back(fileID);
-    }
-
-
-    // now fill available free space with right most file block
-
-
+    size_t freespaceIndex = 0;        // freespace index
     
-    while(left < freespace.size() && right > 0){ 
-        int spaceAvailable = freespace[left];
-        while(spaceAvailable){
 
+
+    while(leftID < rightID && freespaceIndex < freespace.size())
+    {
+        // Fill the defrag vector with leftmost file block ID's
+        // Example: File ID 0 has 2 file blocks. Therefore, 
+        // defrag[0] = 0, defrag[1] = 0
+        for(int i = 0; i < fileblocks[leftID]; i++)
+        {
+            defrag.push_back(leftID);
         }
-        if(fileblocks[right] <= freespace[left]){
-            // amount of rightmost fileblocks is <= available free space
-            defrag.push_back(fileblocks[right]);
-            freespace[left] = freespace[left] - fileblocks[right]; // reduce free space
-            right--;
+
+        leftID += 1;
+
+        // now fill available free space with right most file blocks
+        int spaceAvailable = freespace[freespaceIndex];
+        
+        while(spaceAvailable){
+            if(fileblocks[rightID] > 0){
+                defrag.push_back(rightID);    
+                spaceAvailable -= 1;
+                fileblocks[rightID] -= 1;
+            }
+            else{
+                rightID -= 1;
+            }
         }
-        else{ 
-            // number of fileblocks is greater than the available free space
-            // move some of the file blocks 
-            defrag.push_back(fileblocks[right]);
-            fileblocks[right] -= freespace[left];
-            left++;
-        }
+
+        freespaceIndex += 1;
     }
 
-    std::cout << "Defrag pattern\n";
+    // when leftID == rightID, there may be some fileblocks that have not yet
+    // been added to defrag
+    while(fileblocks[leftID] > 0)
+    {
+        defrag.push_back(leftID);
+        fileblocks[leftID] -= 1;
+    }
+    
+    /*
+    std::cout << "\nDefrag pattern\n";
     for(size_t i = 0; i < defrag.size(); i++)
     {
-        std::cout << defrag[i] << " ";
+        std::cout << defrag[i];
     }
 
-    std::cout << "\n";
+    std::cout << "\n\n";
+    */
     
     // calculate checksum
     long long checksum = 0;
-    for(size_t i = 0; i < defrag.size(); i++){
+    for(int i = 0; i < static_cast<int>(defrag.size()); i++){
         checksum = checksum + i * defrag[i];
     }
     
