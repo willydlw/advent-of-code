@@ -171,6 +171,89 @@ long long part01(const std::string& diskmap)
     
 }
 
+void print_defrag_state(const std::vector<std::pair<int,int>>& defragPairs)
+{
+    for(size_t i = 0; i < defragPairs.size(); i++){
+        if(defragPairs[i].first == -1){
+            for(int j = 0; j < defragPairs[i].second; j++){
+                std::cout << '.';
+            }   
+        }
+        else{
+            for(int j = 0; j < defragPairs[i].second; j++){
+                std::cout << defragPairs[i].first;
+            }  
+        }   
+    }
+
+    std::cout << '\n';
+}
+
+long long part02(const std::string& diskmap)
+{
+    long long checksum = 0;
+    int fileID = 0;
+    
+    std::vector<int> fileBlocks;
+    std::vector<int> freeSpace;
+    std::vector<int> defrag;
+
+    std::vector<std::pair<int,int>> defragPairs;
+
+    for(size_t i = 0; i < diskmap.length(); i++){
+        int digit = diskmap[i] - '0';
+        if(i & 1){
+            freeSpace.push_back(digit);
+            // -1 in key denotes free space, digit is num free space blocks
+            defragPairs.push_back(std::pair<int,int>(-1, digit));
+        }
+        else{
+            fileBlocks.push_back(digit);
+            // digit is num file blocks
+            defragPairs.push_back(std::pair<int,int>(fileID, digit));
+            fileID += 1;
+        }
+    }
+
+    std::cout << "\nInitial Defrag State\n";
+    print_defrag_state(defragPairs);
+    std::cout << "\n";
+
+    /*  Attempt to move whole files to the leftmost span of free space blocks that 
+        could fit the file. Attempt to move each file exactly once in order of 
+        decreasing file ID number starting with the file with the highest file 
+        ID number. 
+        
+        If there is no span of free space to the left of a file that is large 
+        enough to fit the file, the file does not move.
+    
+    */
+    /*
+    int rightID = static_cast<int>(fileBlocks.size() - 1);
+    while(rightID > 0){
+        int numBlocks = fileBlocks[rightID];
+        int foundIndex = -1;
+        // linear search from left to right to find available free space
+        // large enough to hold all blocks 
+        for(size_t j = 0; j < freeSpace.size()-1; j++){
+            if(freeSpace[j] >= numBlocks){
+                foundIndex = j;
+                break;
+            }
+        }
+
+        size_t insertIndex = 0;
+
+        
+
+        // where to insert???
+
+    }*/
+
+
+    return checksum;
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -182,11 +265,11 @@ int main(int argc, char* argv[])
 
     read_diskmap(filename, diskmap);
 
-    std::cout << "diskmap.length() is " << diskmap.length() << "\n";
+    //long long sum1 = part01(diskmap);
+    //std::cout << "part 1: " << sum1 << "\n";
 
-    long long sum1 = part01(diskmap);
-
-    std::cout << "part 1: " << sum1 << "\n";
+    long long sum2 = part02(diskmap);
+    std::cout << "part 2: " << sum2 << "\n";
 
     return 0;
 }
