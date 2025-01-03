@@ -6,7 +6,7 @@
     
     Part 2 solution
         example.txt     2858
-        input.txt       
+        input.txt       6363268339304
 */
 #include <fstream>
 #include <iostream>
@@ -15,6 +15,24 @@
 #include <vector>
 
 #include <cstdlib>          // exit
+
+// adding structs for part 2
+struct FileBlock{
+    int id;
+    int numBlocks;
+
+    FileBlock(): id(0), numBlocks(0){}
+    FileBlock(int fileID, int blocks) : id(fileID), numBlocks(blocks){}
+};
+
+
+struct FileMap{
+    std::vector<FileBlock> fileblocks;
+    int freespace;
+
+    FileMap(): freespace(0) {}
+    
+};
 
 void read_diskmap(const std::string& filename, std::string& diskmap)
 {
@@ -150,17 +168,7 @@ long long part01(const std::string& diskmap)
         defrag.push_back(leftID);
         fileblocks[leftID] -= 1;
     }
-    
-    /*
-    std::cout << "\nDefrag pattern\n";
-    for(size_t i = 0; i < defrag.size(); i++)
-    {
-        std::cout << defrag[i];
-    }
-
-    std::cout << "\n\n";
-    */
-    
+        
     // calculate checksum
     long long checksum = 0;
     for(int i = 0; i < static_cast<int>(defrag.size()); i++){
@@ -171,53 +179,44 @@ long long part01(const std::string& diskmap)
     
 }
 
-void print_defrag_state(const std::vector<std::pair<int,int>>& defragPairs)
+void print_defrag_pattern(const std::vector<int>& defrag)
 {
-    for(size_t i = 0; i < defragPairs.size(); i++){
-        if(defragPairs[i].first == -1){
-            for(int j = 0; j < defragPairs[i].second; j++){
-                std::cout << '.';
-            }   
+    for(size_t i = 0; i < defrag.size(); i++){
+        if(defrag[i] == -1){
+            std::cout << '.';
         }
         else{
-            for(int j = 0; j < defragPairs[i].second; j++){
-                std::cout << defragPairs[i].first;
-            }  
-        }   
+            std::cout << defrag[i];
+        }
     }
-
     std::cout << '\n';
 }
+
 
 long long part02(const std::string& diskmap)
 {
     long long checksum = 0;
     int fileID = 0;
     
-    std::vector<int> fileBlocks;
-    std::vector<int> freeSpace;
-    std::vector<int> defrag;
-
-    std::vector<std::pair<int,int>> defragPairs;
-
+    std::vector<FileMap> filemap;
+   
     for(size_t i = 0; i < diskmap.length(); i++){
+        struct FileMap current;
         int digit = diskmap[i] - '0';
+
+        // odd indices contain freespace amount
         if(i & 1){
-            freeSpace.push_back(digit);
-            // -1 in key denotes free space, digit is num free space blocks
-            defragPairs.push_back(std::pair<int,int>(-1, digit));
+            current.freespace = digit;   
         }
-        else{
-            fileBlocks.push_back(digit);
-            // digit is num file blocks
-            defragPairs.push_back(std::pair<int,int>(fileID, digit));
+        else{   
+            // even indices contain number of file blocks
+            FileBlock fblock(fileID, digit);
+            current.fileblocks.push_back(fblock);
             fileID += 1;
         }
-    }
 
-    std::cout << "\nInitial Defrag State\n";
-    print_defrag_state(defragPairs);
-    std::cout << "\n";
+        filemap.push_back(current);
+    }
 
     /*  Attempt to move whole files to the leftmost span of free space blocks that 
         could fit the file. Attempt to move each file exactly once in order of 
@@ -228,29 +227,57 @@ long long part02(const std::string& diskmap)
         enough to fit the file, the file does not move.
     
     */
-    /*
-    int rightID = static_cast<int>(fileBlocks.size() - 1);
-    while(rightID > 0){
-        int numBlocks = fileBlocks[rightID];
-        int foundIndex = -1;
+ 
+    int right = static_cast<int>(filemap.size() - 1);
+
+    while(right > 0){
+        if(filemap[right].fileblocks.size() < 1){
+            // no file blocks to move
+            --right;
+            continue;
+        }
+
         // linear search from left to right to find available free space
-        // large enough to hold all blocks 
-        for(size_t j = 0; j < freeSpace.size()-1; j++){
-            if(freeSpace[j] >= numBlocks){
-                foundIndex = j;
+        // large enough to hold entire file
+        for(int i = 0; i < right; i++){            
+            FileBlock current = filemap[right].fileblocks.back();
+
+            if(filemap[i].freespace >= current.numBlocks){
+                // yes, there is space to move entire file
+                filemap[i].fileblocks.push_back(current);
+                filemap[i].freespace -= current.numBlocks;
+                filemap[right].fileblocks.pop_back();
+                filemap[right].freespace = current.numBlocks;
                 break;
             }
         }
+        --right;
+    }
 
-        size_t insertIndex = 0;
+    // construct defrag for debugging 
+    std::vector<int> defrag;
+    for(size_t i = 0; i < filemap.size(); i++){
+        for(size_t j = 0; j < filemap[i].fileblocks.size(); j++){
+            for(int k = 0; k < filemap[i].fileblocks[j].numBlocks; k++){
+                defrag.push_back(filemap[i].fileblocks[j].id);
+            }
+        }
+        for(int j = 0; j < filemap[i].freespace; j++){
+            defrag.push_back(-1);
+        }
+    }
 
-        
-
-        // where to insert???
-
-    }*/
-
-
+    //std::cout << "\nDefrag pattern\n";
+    //print_defrag_pattern(defrag);
+            
+    // calculate checksum from defrag pattern
+    for(size_t i = 0; i < defrag.size(); i++){
+        if(defrag[i] != -1){
+            checksum += defrag[i] * i;
+        }
+    }
+    
+    // create checksum
     return checksum;
 }
 
