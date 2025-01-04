@@ -51,19 +51,41 @@ void populate_map(const std::string& filename, std::vector<std::vector<int>>& to
     infile.close();
 }
 
+void display_path(const std::vector<TrailData>& path, int numRows, int numCols)
+{
+    std::vector<std::vector<char>> grid;
+    for(int r = 0; r < numRows; r++){
+        std::vector row(numRows, '.');
+        grid.push_back(row);
+    }
+
+    for(auto data : path){
+        grid[data.row][data.col] = data.height + '0';
+    }
+
+    for(int r = 0; r < numRows; r++){
+        for(int c = 0; c < numCols; c++){
+            std::cout << grid[r][c];
+        }
+        std::cout << "\n";
+    }
+}
+
 bool inbounds(int x, int min, int max)
 {
     return(x >= min && x < max);
 }
 
-void search_for_trails(TrailData origin,
+int search_for_trails(TrailData origin,
         const std::vector<std::vector<int>>& topoMap, int mapRows,
         int mapCols, std::queue<std::vector<TrailData>>& pathsFound)
 {
     // neighbors: up, down, left, right
-    const int NUM_NEIGHBORS = 4;
-    int dx[NUM_NEIGHBORS] = { 0, 0, -1, 1};
-    int dy[NUM_NEIGHBORS] = {-1, 1,  0, 0};
+    static const int NUM_NEIGHBORS = 4;
+    static const int dx[NUM_NEIGHBORS] = { 0, 0, -1, 1};
+    static const int dy[NUM_NEIGHBORS] = {-1, 1,  0, 0};
+
+    int trailheadScore = 0;
 
     // Path starts at trailhead origin
     std::vector<TrailData> path;
@@ -77,7 +99,7 @@ void search_for_trails(TrailData origin,
     while(!possiblePaths.empty()){
 
         std::vector<TrailData> currentPath = possiblePaths.front();
-        pathsFound.pop();
+        possiblePaths.pop();
 
         int nextHeight = currentPath.back().height + 1;
         int row = currentPath.back().row;
@@ -86,6 +108,14 @@ void search_for_trails(TrailData origin,
         if(nextHeight > MAX_HEIGHT){
             // found a complete trail
             pathsFound.push(currentPath);
+            trailheadScore++;
+
+            /*std::cout << "\nPath Found\n";
+            display_path(currentPath, mapRows, mapCols);
+            std::cout << "Trail head score: " << trailheadScore << '\n';
+            std::cerr << "press enter to continue... ";
+            getchar();
+            */
             continue;
         }
 
@@ -98,15 +128,19 @@ void search_for_trails(TrailData origin,
             {
                 if(topoMap[r][c] == nextHeight){
                     TrailData neighbor(topoMap[r][c], r, c);
-                    currentPath.push_back(neighbor);    // add neighbor to path
-                    possiblePaths.push(currentPath);    // add path to search queue
+                    // if I don't make a copy, then multiple neighbors 
+                    // of the same height will be added to the current
+                    // path. Need to maintain unique paths due to the
+                    // way trailScore is accumulated.
+                    std::vector<TrailData> pathCopy(currentPath);
+                    pathCopy.push_back(neighbor);    // add neighbor to path
+                    possiblePaths.push(pathCopy);    // add path to search queue
                 }
             }
         }
     }
 
-    
-
+    return trailheadScore;
 }
 
 int part01(const std::vector<std::vector<int>>& topoMap)
@@ -120,7 +154,7 @@ int part01(const std::vector<std::vector<int>>& topoMap)
             // trailhead can only start at 0 height 
             if(topoMap[r][c] == 0){
                 TrailData origin(topoMap[r][c], r, c);
-                search_for_trails(origin, topoMap, topoMap.size(), topoMap[0].size(),
+                trailheadScore += search_for_trails(origin, topoMap, topoMap.size(), topoMap[r].size(),
                     pathsFound);
                 if(pathsFound.size() > 0){
                     std::cerr << "found " << pathsFound.size() << "\n";
