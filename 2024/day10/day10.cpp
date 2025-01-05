@@ -1,12 +1,21 @@
+/*  Day 10
+        part 1 
+            example.txt     36
+            input.txt       733
+        part 2
+            example.txt     
+            input.txt
+*/
+
 #include <fstream>
 #include <iostream>
 
 #include <vector>
 #include <queue>
+#include <map>
 
 #include <string>
 #include <cstdlib>
-
 
 #define MAX_HEIGHT 9
 
@@ -16,7 +25,7 @@ struct TrailData{
     int row;
     int col;
 
-    TrailData(): height(-1), row(-1), col(-1){}
+    TrailData(): height(-1), row(-1), col(-1) {}
     TrailData(int h, int r, int c): height(h), row(r), col(c) {}
 };
 
@@ -76,9 +85,12 @@ bool inbounds(int x, int min, int max)
     return(x >= min && x < max);
 }
 
+/* Passing a copy of the topoMap so changes made to visited are local
+   only.
+*/
 int search_for_trails(TrailData origin,
-        const std::vector<std::vector<int>>& topoMap, int mapRows,
-        int mapCols, std::queue<std::vector<TrailData>>& pathsFound)
+        std::vector<std::vector<int>> topoMap, int mapRows,
+        int mapCols)
 {
     // neighbors: up, down, left, right
     static const int NUM_NEIGHBORS = 4;
@@ -95,6 +107,9 @@ int search_for_trails(TrailData origin,
     std::queue<std::vector<TrailData>> possiblePaths;
     possiblePaths.push(path);
 
+    // track peaks visited from this trailhead origin
+    std::map<int, int> peaksVisited;
+
     
     while(!possiblePaths.empty()){
 
@@ -105,11 +120,18 @@ int search_for_trails(TrailData origin,
         int row = currentPath.back().row;
         int col = currentPath.back().col;
 
-        if(nextHeight > MAX_HEIGHT){
-            // found a complete trail
-            pathsFound.push(currentPath);
-            trailheadScore++;
-
+        if(currentPath.back().height == MAX_HEIGHT){
+            // found a complete trail, has this peak already been
+            // visited from this trailhead origin?
+            auto itr = peaksVisited.find(row*mapCols + col);
+            if(itr != peaksVisited.end()){
+                itr->second += 1;
+            }
+            else{
+                peaksVisited[row*mapCols+col] = 1;
+                trailheadScore += 1;
+            }
+    
             /*std::cout << "\nPath Found\n";
             display_path(currentPath, mapRows, mapCols);
             std::cout << "Trail head score: " << trailheadScore << '\n';
@@ -147,18 +169,13 @@ int part01(const std::vector<std::vector<int>>& topoMap)
 {
     int trailheadScore = 0;
 
-    std::queue<std::vector<TrailData>> pathsFound;
-
     for(size_t r = 0; r < topoMap.size(); r++){
         for(size_t c = 0; c < topoMap[r].size(); c++){
             // trailhead can only start at 0 height 
             if(topoMap[r][c] == 0){
                 TrailData origin(topoMap[r][c], r, c);
-                trailheadScore += search_for_trails(origin, topoMap, topoMap.size(), topoMap[r].size(),
-                    pathsFound);
-                if(pathsFound.size() > 0){
-                    std::cerr << "found " << pathsFound.size() << "\n";
-                }
+                trailheadScore += search_for_trails(origin, topoMap, topoMap.size(), 
+                                                    topoMap[r].size());
             }
         }
     }
