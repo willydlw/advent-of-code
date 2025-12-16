@@ -55,24 +55,29 @@
 
     Part 1
         test.txt  - Part 1 fresh ingredient count: 3
-        input.txt - Part 1 fresh ingredient count: 808  INCORRECT, answer too low
+        input.txt - Part 1 fresh ingredient count: 840 
+
+    Part 2 
+        test.txt  - Part 2 count: 14
+        input.txt - Part 2 count: 359913027576322
 */
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <map>
+#include <utility>
 #include <vector>
 
-void printRanges(const std::map<long long, long long>& idRanges)
+void printRanges(std::vector<std::pair<long long, long long>>& idRanges)
 {
     for(const auto& r : idRanges){
         std::cerr << r.first << " - " << r.second << "\n";
     }
 }
 
-bool loadInput(std::string filename, std::map<long long, long long>& idRanges,
+bool loadInput(std::string filename, std::vector<std::pair<long long, long long>>& idRanges,
                 std::vector<long long>& indgredients)
 {
     std::ifstream infile(filename);
@@ -95,7 +100,7 @@ bool loadInput(std::string filename, std::map<long long, long long>& idRanges,
             return false;
         }
 
-        idRanges[low] = high;
+        idRanges.emplace_back(low, high);
     }
 
     // read ingredients
@@ -113,44 +118,57 @@ bool loadInput(std::string filename, std::map<long long, long long>& idRanges,
     return true;
 }
 
-void part01(const std::map<long long, long long>& idRanges, const std::vector<long long>& ingredients)
+void part01(const std::vector<std::pair<long long, long long>>& idRanges, const std::vector<long long>& ingredients)
 {
     long long freshCount = 0;
 
     for(const auto& ingredient : ingredients){
-        // Get an iterator to the first element with a key greater than ingredient
-        auto it = idRanges.upper_bound(ingredient);
-
-        //std::cerr << "Checking ingredient number: " << ingredient << "\n";
-
-        if(it == idRanges.begin()){
-            //std::cerr << "No key less than or equal to ingredient: " << ingredient 
-            //    << ", not a fresh ingredient\n";
-            continue;
-        }
-
-        // Decrement iterator to get to element with the greatest key <= ingredientValue
-        --it;                   
-        bool notFound = true;
-        while(notFound){
-            if(it->first <= ingredient && ingredient <= it->second){
-                std::cerr << "Found ingredient: " << ingredient << " in range: " << it->first << " - " << it->second << "\n";
+        for(const auto& range : idRanges){
+            if(range.first <= ingredient && ingredient <= range.second){
                 freshCount++;
-                notFound = false;
-            }
-            else{
-                if(it == idRanges.begin()){
-                    //std::cerr << "At start of map, ingredient: " << ingredient << " not found\n";
-                    break;
-                }
-                else{
-                    --it;
-                }
+                break;
             }
         }
     }
-
+    
     std::cerr << "Part 1 fresh ingredient count: " << freshCount << "\n";
+}
+
+// Total unique ids
+void part02(std::vector<std::pair<long long, long long>>& idRanges)
+{
+    long long count = 0;
+    std::sort(idRanges.begin(), idRanges.end());
+    printRanges(idRanges);
+
+    std::pair<long long, long long> prevRange{-1, 0};
+
+    for(const auto& range : idRanges)
+    {
+        if(prevRange.first == -1){
+            prevRange.first = range.first;
+            prevRange.second = range.second;
+        }
+        else if(prevRange.second < range.first)
+        {
+            // high value of previous is less than low value of this range
+            // no overlap
+            count += prevRange.second - prevRange.first + 1;
+            prevRange.first = range.first;
+            prevRange.second = range.second;
+        }
+        else 
+        {   // ranges overlap, merge them
+            // prevRange.first <= range.first because values are sorted
+            // prevRange.first = prevRange.first
+            // find greater of high values 
+            prevRange.second = std::max(prevRange.second, range.second);
+        }
+    }
+
+    count += prevRange.second - prevRange.first + 1;
+
+    std::cerr << "Part 2 count: " << count << "\n";
 }
 
 int main(int argc, char* argv[])
@@ -160,7 +178,7 @@ int main(int argc, char* argv[])
         filename = argv[1];
     }
 
-    std::map<long long, long long> idRanges;
+    std::vector<std::pair<long long, long long>> idRanges;
     std::vector<long long> ingredients;
 
     if(!loadInput(filename, idRanges, ingredients)){
@@ -169,9 +187,10 @@ int main(int argc, char* argv[])
     }
 
 
-    //std::cerr << "idRanges.size() " << idRanges.size() << ", ingredients.size() " << ingredients.size() << "\n";
+    std::cerr << "idRanges.size() " << idRanges.size() << ", ingredients.size() " << ingredients.size() << "\n";
     //printRanges(idRanges);
-    part01(idRanges, ingredients);
+    //part01(idRanges, ingredients);
+    part02(idRanges);
 
     return 0;
 }
