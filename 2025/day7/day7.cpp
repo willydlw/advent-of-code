@@ -1,8 +1,9 @@
 #include <fstream>
 #include<iostream>
-#include<string>
-#include <vector>
 #include <iomanip>
+#include <queue>
+#include <string>
+#include <vector>
 
 /*  Answers
     
@@ -11,8 +12,8 @@
         input.txt - Part 1 numSplits: 1638
     
     Part 2
-        test.txt  -
-        input.txt - 
+        test.txt  - Part 2 quantum splits: 40
+        input.txt - Part 2 quantum splits: 7759107121385
 */
 
 
@@ -21,11 +22,54 @@ static constexpr char SPLITTER = '^';
 static constexpr char BEAM = '|';
 static constexpr char EMPTY = '.';
 
+// Inidicates path parent
+static constexpr int ABOVE       =  0;  // row above, same Column
+static constexpr int ABOVE_LEFT  = -1;  // row above, column to left
+static constexpr int ABOVE_RIGHT = +1;  // row above, column to right
 
-void displayGrid(const std::vector<std::string>& grid)
+struct Location{
+    int row = 0;
+    int col = 0;
+    Location() = default;
+    Location(int r, int c) : row(r), col(c) {}
+    Location(const Location& other){
+        row = other.row;
+        col = other.col;
+    }
+};
+
+struct PathElement{
+    char symbol = EMPTY;
+    long long count = 0;
+    bool visited = false;
+    std::vector<Location> parents;
+};
+
+struct ChildElement{
+    Location child;
+    Location parent;
+   
+    ChildElement() = default;
+    ChildElement(Location child, Location parent) :
+    child(child), parent(parent) {}
+};
+
+
+
+void printGridSymbols(const std::vector<std::string>& grid)
 {
     for(const auto& g : grid){
         std::cout << g << "\n";
+    }
+}
+
+void printGridSymbols(int rows, int cols, const std::vector<std::vector<PathElement>>& pathElements)
+{
+    for(int r = 0; r < rows; r++){
+        for(int c = 0; c < cols; c++){
+            std::cout << pathElements[r][c].symbol;
+        }
+        std::cout << "\n";
     }
 }
 
@@ -47,17 +91,13 @@ bool loadInput(const std::string& filename, std::vector<std::string>& grid)
 }
 
 
-// Assumption: grid not empty
-bool findStartLocation(const std::vector<std::string>& grid, std::pair<int, int>& location)
+bool findStartLocation(int rows, int cols, const std::vector<std::string>& grid, Location& location)
 {
-    int totalRows = static_cast<int>(grid.size());
-    int totalCols = static_cast<int>(grid[0].size());   // will crash if grid empty
-
-    for(int r = 0; r < totalRows; r++){
-        for(int c = 0; c < totalCols; c++){
+    for(int r = 0; r < rows; r++){
+        for(int c = 0; c < cols; c++){
             if(grid[r][c] == START){
-                location.first = r;
-                location.second = c;
+                location.row = r;
+                location.col = c;
                 return true;
             }
         }
@@ -114,116 +154,145 @@ long long processRow(int totalRows, int totalCols, int testRow, std::vector<std:
 // Assumption: all strings are the same length
 long long part01(const std::vector<std::string>& grid)
 {
-    long long numSplits = 0;
-    std::vector<std::string> workingGrid(grid);
-    std::pair<int, int> startLocation;
-
     if(grid.empty()){
         std::cerr << "[WARNING] part 1 parameter grid is empty\n";
         return 0;
     }
 
-    if(!findStartLocation(workingGrid, startLocation)){
+    long long numSplits = 0;
+    int rows = static_cast<int>(grid.size());
+    int cols = static_cast<int>(grid[0].size());
+
+    std::vector<std::string> workingGrid(grid);
+    Location startLocation;
+
+    if(!findStartLocation(rows, cols, workingGrid, startLocation)){
         std::cerr << "[WARNING] part 1 start location not found in grid\n";
         return 0;
     }
 
-    int totalRows = static_cast<int>(grid.size());
-    int totalCols = static_cast<int>(grid[0].size());
-    int testRow = startLocation.first + 1;
+    
+    int testRow = startLocation.row + 1;
 
     // checkCols contain locations of start or beams
     std::vector<int> checkCols;
-    checkCols.push_back(startLocation.second);
+    checkCols.push_back(startLocation.col);
 
-    while(testRow < totalRows)
+    while(testRow < rows)
     {
-        numSplits += processRow(totalRows, totalCols, testRow, workingGrid, checkCols);
-        #if 0
-        std::cout << "\nGrid State\n";
-        displayGrid(workingGrid);
-        std::cerr << "\nPress enter key to continue...";
-        std::cin.get();
-        #endif
+        numSplits += processRow(rows, cols, testRow, workingGrid, checkCols);
         testRow++;
     }
 
     return numSplits;   
 }
 
-void printGrid(const std::vector<std::vector<int>>& grid, int rows, int cols)
+void printPathCounts(const std::vector<std::vector<PathElement>>& pathElements, int rows, int cols)
 {
     for(int r = 0; r < rows; r++){
         for(int c = 0; c < cols; c++){
-            std::cout << std::setw(2) << grid[r][c] << " ";
+            if(pathElements[r][c].count != 0){
+                std::cout << std::setw(2) << pathElements[r][c].count << " ";
+            }
+            else{
+                std::cout << " . ";
+            }
         }
         std::cout << "\n";
     }
 }
 
 
-bool inBetweenSplitters(int rows, int cols, int r, int c, const std::vector<std::string>& grid)
+/*  Parameters 
+        Input: 
+            rows - number of grid rows 
+            cols - number of columns in each grid string (same for all strings)
+            children - list of children to be processed
+            manifold - input character grid 
+
+        Output:
+            pathStats - Size is rows, cols. 
+                        Each element contains its character symbol,
+                        a count of number of paths passing through this point,
+                        and the parents (in row above) that created a path through this location
+*/
+void markPaths(int rows, int cols, const Location& start, std::vector<std::vector<PathElement>>& pathElements)
 {
-    if(inbounds(rows, cols, r, c-1) && inbounds(rows, cols, r, c+1))
-    {
-        if(grid[r][c-1] == SPLITTER && grid[r][c+1] == SPLITTER){
-            return true;
-        }
+    std::queue<ChildElement> unmarked;
+    
+    pathElements[start.row][start.col].count++;
+    
+    if(inbounds(rows, cols, start.row+1, start.col)){
+        ChildElement ce{{start.row+1, start.col}, {start.row, start.col}};
+        unmarked.push(ce);
     }
 
-    return false;
+    while(!unmarked.empty()){
+        ChildElement current = unmarked.front();
+        unmarked.pop();
+
+        int r = current.child.row;
+        int c = current.child.col;
+
+        if(inbounds(rows, cols, r, c)){
+
+            switch(pathElements[r][c].symbol){
+                case BEAM:
+                {
+                    pathElements[r][c].count++;
+                    pathElements[r][c].parents.push_back(current.parent);
+                    //ChildElement ce ({r+1, c}, {r, c});
+                    //unmarked.push(ce);
+                }
+                break;
+                case EMPTY:
+                {
+                    pathElements[r][c].symbol = BEAM;
+                    pathElements[r][c].count++;
+                    pathElements[r][c].parents.push_back(current.parent);
+                    ChildElement ce ({r+1, c}, {r, c});
+                    unmarked.push(ce);
+                }
+                break;
+                case SPLITTER:
+                {
+                    ChildElement left({r, c-1}, current.parent);
+                    ChildElement right({r, c+1},current.parent);
+                    unmarked.push(left);
+                    unmarked.push(right);        
+                }
+                break;
+                default:
+                    std::cerr << "[WARNING] func: " << __func__ << " unknown symbol: " 
+                        << pathElements[r][c].symbol << " at row: " << r << ", col: "
+                        << c << "\n";
+            }
+        }
+    } 
 }
 
-void countPaths(int totalRows, int totalCols, const std::vector<std::string>& grid, 
-                std::vector<std::vector<int>>& pathCount)
+void updateCounts(int rows, int cols, Location start, std::vector<std::vector<PathElement>>& pathElements)
 {
-    for(int r = 0; r < totalRows; r++){
-        for(int c = 0; c < totalCols; c++){
-            if(grid[r][c] == BEAM){
-                if(inBetweenSplitters(totalRows, totalCols, r, c, grid)){
-                    std::cout << "merging paths between two splitters in this row\n";
-                    pathCount[r][c] = pathCount[r-1][c-1] + pathCount[r-1][c+1] + pathCount[r-1][c];
+    // Assumption: start will be in a row all by itself. 
+    // The next path connection will be in the row below.
+    for(int r = start.row+1; r < rows; r++){
+        for(int c = 0; c < cols; c++){
+            int numParents = pathElements[r][c].count;
+            if(numParents == 1){
+                Location parent = pathElements[r][c].parents.front();
+                pathElements[r][c].count = pathElements[parent.row][parent.col].count;
+            }
+            else if(numParents > 1){
+                long long sum = 0;
+                for(auto p : pathElements[r][c].parents){
+                    sum += pathElements[p.row][p.col].count;
                 }
-                else{
-                    #if 0
-                    std::cout << "not between two splitters in this row\n";
-                    std::cout << "row above, same col:  " << grid[r-1][c] << "\n";
-                    std::cout << "row above, col left:  " << grid[r-1][c-1] << "\n";
-                    std::cout << "row above, col right: " << grid[r-1][c+1] << "\n";
-                    std::cout << "Press enter to continue...";
-                    std::cin.get();
-                    #endif
-
-                    // Check row above same column: Can be a beam, start, or empty 
-                    // Cannot have a splitter in the same column, row above
-                    if(grid[r-1][c] == BEAM || grid[r-1][c] == START){
-                        //std::cout << "BEAM or START directly above: " << grid[r-1][c] << "\n";
-                        pathCount[r][c] = pathCount[r-1][c];
-                    }
-                    else{
-                        //std::cout << "Checking if left or right neighbor in this row is a splitter\n";
-                        if(inbounds(totalRows, totalCols, r, c-1) && grid[r][c-1] == SPLITTER){
-                            //std::cout << "left neighbor is splitter\n";
-                            pathCount[r][c] = pathCount[r-1][c-1];
-                        }
-                        else if(inbounds(totalRows, totalCols, r, c+1) && grid[r][c+1] == SPLITTER){
-                            //std::cout << "right neighbor is splitter\n";
-                            pathCount[r][c] = pathCount[r-1][c+1];
-                        }
-                        else{
-                            std::cout << "[WARNING] case not considered, r: " << r << ", c: "
-                            << c << " grid[r][c]: " << grid[r][c] << " is a BEAM? how did we get here?\n";
-                        }
-                    }
-                    
-                }
+                pathElements[r][c].count = sum;
             }
         }
     }
-    printGrid(pathCount, totalRows, totalCols);
-    std::cout << "Press enter key to continue...";
-    std::cin.get();
 }
+
 
 // Assumes each string is same length
 long long part02(const std::vector<std::string>& grid)
@@ -233,48 +302,36 @@ long long part02(const std::vector<std::string>& grid)
         return 0;
     }
 
-    int totalRows = static_cast<int>(grid.size());
-    int totalCols = static_cast<int>(grid[0].size());
+    int rows = static_cast<int>(grid.size());
+    int cols = static_cast<int>(grid[0].size());
 
-    std::vector<std::string> workingGrid(grid);
-
-    std::pair<int, int> startLocation;
-    if(!findStartLocation(workingGrid, startLocation)){
-        std::cerr << "[WARNING] part 1 start location not found in grid\n";
-        return 0;
-    }
-   
-    int testRow = startLocation.first + 1;
-    std::vector<int> checkCols;                 // checkCols contain locations of start or beams
-    checkCols.push_back(startLocation.second);
-
-    while(testRow < totalRows)
-    {
-        processRow(totalRows, totalCols, testRow, workingGrid, checkCols);
-        testRow++;
+    // Declare and intialize PathElement grid
+    std::vector<std::vector<PathElement>> pathElements(rows, std::vector<PathElement>(cols));
+    for(int r = 0; r < rows; r++){
+        for(int c = 0; c < cols; c++){
+            pathElements[r][c].symbol = grid[r][c];
+            pathElements[r][c].count = 0;               // TODO: redundant, should be default initialized to zero
+        }
     }
 
-
-    #if 1
-    std::cout << "\nGrid State\n";
-    displayGrid(workingGrid);
-    std::cerr << "\nPress enter key to continue...";
-    std::cin.get();
-    #endif
-
-    // zero-initialized 2d grid 
-    std::vector<std::vector<int>> pathCount(totalRows, std::vector<int>(totalCols, 0));
-    pathCount[startLocation.first][startLocation.second] += 1;
-
-    countPaths(totalRows, totalCols, workingGrid, pathCount);
-
-    std::cout << "\nCounts\n";
-    printGrid(pathCount, totalRows, totalCols);
-
-    // Sum counts in last row
-    for(int c = 0; c < totalCols; c++){
-        sum += pathCount[totalRows-1][c];
+    Location startLocation;
+    if(!findStartLocation(rows, cols, grid, startLocation)){
+        std::cerr << "[FATAL] part 1 start location not found in grid\n";
+        std::exit(EXIT_FAILURE);
     }
+    
+    markPaths(rows, cols, startLocation, pathElements);
+    updateCounts(rows, cols, startLocation, pathElements);
+
+    //printGridSymbols(rows, cols, pathElements);
+    //printPathCounts(pathElements, rows, cols);
+
+    int lastRow = rows-1;
+
+    for(int c = 0; c < cols; c++){
+        sum += pathElements[lastRow][c].count;
+    }
+    
     return sum;
 }
 
