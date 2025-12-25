@@ -38,23 +38,46 @@ struct Point{
         : x(x), y(y), z(z) {}
 };
 
-struct Node{
+struct Distance{
     long long distance = 0;             // distance between two points
     // Points are stored in an array
     // index1, index2 are locations of points in that array
     int index1;                
     int index2;
 
-    Node() = default;
-    Node(long long dist, int p1Index, int p2Index) 
+    Distance() = default;
+    Distance(long long dist, int p1Index, int p2Index) 
         : distance(dist), index1(p1Index), index2(p2Index) {}
 };
 
-bool compareDistances(const Node& a, const Node& b)
+struct KeyValue{
+    int key = 0;
+    int value = 0;
+    KeyValue() = default;
+    KeyValue(int k, int v) : key(k), value(v){}
+};
+
+struct Circuit{
+    int parentValue;
+    int size = 0;
+};
+
+/*  Returns true when a's distance is less than b's distance.
+    Function used by std::sort algorithm
+*/
+bool compareDistances(const Distance& a, const Distance& b)
 {
     return a.distance < b.distance;
 }
 
+
+/* Parameters 
+    Input: filename - name of file containing x, y, z coordinates
+    Output: points - array of 3D points
+
+    Description: Reads x,y,z coordinates from a file and 
+    stores the coordinates in points array.
+*/
 bool loadInput(const std::string& filename, std::vector<Point>& points)
 {
     std::ifstream infile(filename);
@@ -82,6 +105,9 @@ bool loadInput(const std::string& filename, std::vector<Point>& points)
     return true;
 }
 
+
+// Description: prints the x, y, z values of each 
+// Point stored in the points array.
 void printPoints(const std::vector<Point>& points)
 {
     for(const auto& p : points){
@@ -91,15 +117,22 @@ void printPoints(const std::vector<Point>& points)
     }
 }
 
-void calcDistances(const std::vector<Point>& points, std::vector<Node>& nodes)
+// Description: calculates distances between all possible pairs of points
+// Parameters
+//  Input: points - array of x,y,z coordinates 
+//  Output: distances - squared distance between each pair of points and index locations 
+//                      indicating their position in the points array.
+void calcDistances(const std::vector<Point>& points, std::vector<Distance>& distances)
 {
+    distances.clear();
+
     for(size_t i = 0; i < points.size()-1; i++){
         for(size_t j = i + 1; j < points.size(); j++){
             long long dx = points[i].x - points[j].x;
             long long dy = points[i].y - points[j].y;
             long long dz = points[i].z - points[j].z;
             long long squaredDistance = dx * dx + dy * dy + dz * dz;
-            nodes.emplace_back(squaredDistance, i, j);
+            distances.emplace_back(squaredDistance, i, j);
         }
     }
 }
@@ -108,27 +141,28 @@ void calcDistances(const std::vector<Point>& points, std::vector<Node>& nodes)
 // Return the parent of the i's circuit
 int find(std::vector<int>& parents, int i)
 {
-    // Base case - found root node
-    if(parents[i] == i){
-        return i;
+    while(parents[i] != i){
+        i = parents[i];
     }
 
-    // Recursive case - find parent of parent[i]
-    // update parent[i]
-    parents[i] = find(parents, i);
-
-    return parents[i];
+    return i;
 }
 
 
-// merge i and j circuits
-void merge_circuits(std::vector<int> parents, int i, int j)
+//  Union by size
+//  merge i and j circuits
+//  attach the smaller tree to the larger tree
+void merge_circuits(std::vector<int>& parents, int i, int j)
 {
     // i's parent node 
     int pi = find(parents, i);
 
     // j's parent node
     int pj = find(parents, j);
+
+    if(pi == pj){
+        return;
+    }
 
     // join the circuits by changing j's parent to i's parent
     parents[pj] = pi;
@@ -168,61 +202,41 @@ void part01(const std::vector<Point>& junctionBoxes)
     std::vector<int> parents(junctionBoxes.size());
     make_set(parents, junctionBoxes.size());
 
-    std::cerr << "Parent's list\n";
-    for(int i : parents){
-        std::cerr << i << " ";
-    }
-
-    std::cerr << "\n";
-
-
     // Create an array of tree nodes (set elements) that store
     // the distance between two points and the index location of 
     // those two points in the junction box positions array
-    std::vector<Node> distances;
-
-    // sum integers from 1 to n is n(n+1)/2 
-    // distance matrix is symmetric
-    // 1 2 3 4
-    // 0 1 2 3
-    // 0 0 1 2
-    // 0 0 0 1 
-    // num distances = 4 + 3 + 2 + 1 
-    distances.reserve(junctionBoxes.size()*(junctionBoxes.size()+1)/2);       
+    std::vector<Distance> distances;
 
     // calculate the distance between two points, storing the distance
     // and the 
     calcDistances(junctionBoxes, distances);
-    
-    
-
-    #if 0
-    std::cerr << "Sorted Squared Distances";
-    int printCount = 0;
-    for(const auto& n : distanceNodes){
-        if(printCount % 6 == 0){
-            std::cerr << "\n";
-        }
-
-        std::cerr << std::setw(10) << n.distance << " ";
-        printCount++;
-    }
-
-    std::cerr << "\n";
-    #endif
-
-
-    // Use union find to combine nodes into circuits 
-
+ 
+ 
     // connect all points starting from shortest distance to longest distance 
+    // sort distances into ascending order
     std::sort(distances.begin(), distances.end(), compareDistances);
+
+    std::cerr << "Distance" << std::setw(15) << "Point 1"
+        << std::setw(22) << "Point 2\n";
+    for(const auto& d : distances){
+        std::cerr << d.distance << "       "
+            << std::setw(3) << junctionBoxes[d.index1].x << ", " 
+            << std::setw(3) << junctionBoxes[d.index1].y << ", " 
+            << std::setw(3) << junctionBoxes[d.index1].z 
+            << "       "
+            << std::setw(3) << junctionBoxes[d.index2].x << ", " 
+            << std::setw(3) << junctionBoxes[d.index2].y << ", " 
+            << std::setw(3) << junctionBoxes[d.index2].z 
+            << "\n";
+    }
 
     // Puzzle specifies joining 1000 shortest distances 
     // test files may be smaller, so use min
-    size_t stop = distances.size() >= 1000? 1000 : distances.size();
-    for(size_t k = 0; k < stop; k++){
-        int i = distances[k].index1;        // index in junction box array
-        int j = distances[k].index2;
+    size_t stop = (distances.size() >= 1000? 1000 : distances.size());
+
+    for(size_t k = 0; k < 10; k++){
+        int i = distances[k].index1;        // junction box array index location
+        int j = distances[k].index2;        // junction box array index location
 
         // skip over junction boxes that are already in the same circuit
         if(find(parents, i) == find(parents, j)){
@@ -234,12 +248,37 @@ void part01(const std::vector<Point>& junctionBoxes)
     }
 
     // find the sizes of the three largest circuits
-    // keys: root node number, values: how many nodes belong to that root
+    std::vector<KeyValue> circuitDictionary;
 
+    // initialize all counts to zero
+    // first is key
+    // second is count value
+    for(int i = 0; i < (int)parents.size(); i++){
+        circuitDictionary.emplace_back(i, 0);
+    }
 
+    // count the circuits 
+    for(int i = 0; i < (int)parents.size(); i++){
+        circuitDictionary[parents[i]].value += 1;         // TODO: incorrect syntax. Maybe use a map instead.
+    }
 
+    // sort in descending order
+    std::sort(circuitDictionary.begin(), circuitDictionary.end(), [](const KeyValue& a,
+        const KeyValue& b){return a.value > b.value;});
 
-    // Operation 2
+    #if 1
+    std::cerr << "Circuit Dictionary after sort\n";
+    for(const auto& c : circuitDictionary){
+        std::cerr << "key: " << c.key << ", value: " << c.value << "\n";
+    }
+    #endif
+
+    long long product = 1;
+    for(int i = 0; i < 3; i++){
+        product *= circuitDictionary[i].value;
+    }
+
+    std::cerr << "Part 1 answer: " << product << "\n";
 }
 
 int main(int argc, char* argv[])
