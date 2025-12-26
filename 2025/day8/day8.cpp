@@ -19,6 +19,16 @@
     positions in 3D space (your puzzle input).
 */
 
+/*  Answers
+    
+    Part 1
+        test.txt  - Part 1 answer: 40
+        input.txt - 
+
+    Part 2 
+        test.txt - 
+*/
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -192,8 +202,10 @@ void make_set(std::vector<int>& parents, size_t numNodes)
             2. find - locate the representative (root node) of the set
             3. union - merge two sets
 
+    
+
 */
-void part01(const std::vector<Point>& junctionBoxes)
+void part01(const std::vector<Point>& junctionBoxes, int numDistances)
 {
     // Union-Find Operation 1, make_set
     //  Keys are junction box i from 0 to length of junction boxes
@@ -210,14 +222,20 @@ void part01(const std::vector<Point>& junctionBoxes)
     // calculate the distance between two points, storing the distance
     // and the 
     calcDistances(junctionBoxes, distances);
+
+    std::cerr << "Distances calculated\n";
+    std::exit(EXIT_FAILURE);
  
  
     // connect all points starting from shortest distance to longest distance 
     // sort distances into ascending order
     std::sort(distances.begin(), distances.end(), compareDistances);
 
+    #if 0
+    std::cerr << "Sorted By Distances\n";
     std::cerr << "Distance" << std::setw(15) << "Point 1"
         << std::setw(22) << "Point 2\n";
+    int temp = 0;
     for(const auto& d : distances){
         std::cerr << d.distance << "       "
             << std::setw(3) << junctionBoxes[d.index1].x << ", " 
@@ -228,23 +246,55 @@ void part01(const std::vector<Point>& junctionBoxes)
             << std::setw(3) << junctionBoxes[d.index2].y << ", " 
             << std::setw(3) << junctionBoxes[d.index2].z 
             << "\n";
+        if(temp >= numDistances) break;
+        temp++;
     }
+    #endif 
+ 
+    #if 0
+    std::cerr << "Iterate through Sorted Distances, merging circuits\n";
+    #endif
 
-    // Puzzle specifies joining 1000 shortest distances 
-    // test files may be smaller, so use min
-    size_t stop = (distances.size() >= 1000? 1000 : distances.size());
-
-    for(size_t k = 0; k < 10; k++){
+    for(int k = 0; k < numDistances; k++){
         int i = distances[k].index1;        // junction box array index location
         int j = distances[k].index2;        // junction box array index location
 
+        #if 0
+        std::cerr << "k: " << k << ", distance: " << distances[k].distance 
+            << ", i: " << i << ", j: " << j << "\n";
+        
+        std::cerr << "locations, junction box i:  " 
+         << std::setw(3) << junctionBoxes[i].x << ", " 
+            << std::setw(3) << junctionBoxes[i].y << ", " 
+            << std::setw(3) << junctionBoxes[i].z 
+            << "\tjunction box j: "
+            << junctionBoxes[j].x << ", " 
+            << std::setw(3) << junctionBoxes[j].y << ", " 
+            << std::setw(3) << junctionBoxes[j].z 
+            << "\n";
+        
+        std::cerr << "i's parent: " << find(parents, i) << ", j's parent: " << find(parents, j)
+            << "\n";
+        #endif
+
         // skip over junction boxes that are already in the same circuit
         if(find(parents, i) == find(parents, j)){
+            //std::cerr << i << ", " << j << " already in same circuit\n";
             continue;
         }
 
         // combine the circuits 
         merge_circuits(parents, i , j);
+
+        #if 0
+        std::cerr << "Parents list after merging circuits\n";
+        for(size_t zz = 0; zz < parents.size(); zz++){
+            std::cerr << "index: " << zz << " " << parents[zz] << "\n";
+        }
+
+        std::cerr << "Press enter to continue...";
+        std::cin.get();
+        #endif
     }
 
     // find the sizes of the three largest circuits
@@ -259,14 +309,16 @@ void part01(const std::vector<Point>& junctionBoxes)
 
     // count the circuits 
     for(int i = 0; i < (int)parents.size(); i++){
-        circuitDictionary[parents[i]].value += 1;         // TODO: incorrect syntax. Maybe use a map instead.
+        int root = find(parents, i);
+        //std::cerr << "i: " << i << ", root: " << root << "\n";
+        circuitDictionary[root].value += 1;       
     }
 
     // sort in descending order
     std::sort(circuitDictionary.begin(), circuitDictionary.end(), [](const KeyValue& a,
         const KeyValue& b){return a.value > b.value;});
 
-    #if 1
+    #if 0
     std::cerr << "Circuit Dictionary after sort\n";
     for(const auto& c : circuitDictionary){
         std::cerr << "key: " << c.key << ", value: " << c.value << "\n";
@@ -284,8 +336,13 @@ void part01(const std::vector<Point>& junctionBoxes)
 int main(int argc, char* argv[])
 {
     std::string filename{"test.txt"};
+
+    // Puzzle specifies joining 1000 shortest distances 
+    // Number of test differences is 10
+    int numDistances = 10;
     if(argc == 2){
         filename = argv[1];
+        numDistances = 1000;
     }
 
     std::vector<Point> jboxPositions;
@@ -294,7 +351,7 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    part01(jboxPositions);
+    part01(jboxPositions, numDistances);
 
     return 0;
 }
